@@ -1,6 +1,6 @@
 const i18n = {
   en: {
-    title: "PHANES Counterfactual Demo",
+    title: "Fundus-Lesion-Phenotyping Demo",
     image: "Image",
     color_mode: "Color Mode",
     mask_thr: "Mask Threshold",
@@ -14,7 +14,7 @@ const i18n = {
     run: "Run",
   },
   zh: {
-    title: "PHANES 反事实演示",
+    title: "眼底图像病灶潜在变量提取演示",
     image: "图像",
     color_mode: "色彩模式",
     mask_thr: "掩膜阈值",
