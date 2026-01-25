@@ -1,0 +1,1 @@
+{"paths": {"aae_c": "/home/weichy26/code/PHANES/train_demo/model_ckp/20W_normal_aaeC_cfp_train_best.pth", "aot_gan": "/home/weichy26/code/PHANES/train_demo/aotgan_vis_1231/best.pth", "aae_s": "/home/weichy26/code/PHANES/train_demo/model_ckp/20W_normal_aaeS_cfp_train_best.pth", "device": "cuda"}, "ui": {"layout": "vertical"}}

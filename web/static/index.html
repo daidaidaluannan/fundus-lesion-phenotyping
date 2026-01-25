@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PHANES Counterfactual Demo</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="/static/style.css?v=9">
+</head>
+<body>
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span id="modal-close">&times;</span>
+      <img id="modal-img" alt="preview">
+      <div id="modal-label"></div>
+    </div>
+  </div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="title-block">
+        <div class="title-row">
+          <img src="/static/logo.png" alt="PHANES logo">
+          <div class="title" data-i18n="title">PHANES Counterfactual Demo</div>
+        </div>
+        <div class="subtitle">AAE + AOT-GAN based counterfactual visualization with mask auto-generation and latent adjustment.</div>
+      </div>
+      <div class="lang-toggle">
+        <button onclick="setLang('en')">EN</button>
+        <button onclick="setLang('zh')">中文</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="panel">
+        <form id="analyze-form" enctype="multipart/form-data" method="post" action="javascript:void(0);">
+          <label class="form-label" data-i18n="image">Image</label>
+          <input type="file" name="image" accept="image/*">
+          <div class="preview" id="preview"></div>
+          <label class="form-label" data-i18n="sample">Or choose a sample</label>
+          <select name="sample_name" id="sample-select">
+            <option value="">-- none --</option>
+          </select>
+          <div class="row">
+            <div>
+              <label class="form-label" data-i18n="color_mode">Color Mode</label>
+              <select name="color_mode">
+                <option value="color">color</option>
+                <option value="gray">gray</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" data-i18n="mask_thr">Mask Threshold</label>
+              <input type="number" step="0.001" name="mask_threshold" value="0.153">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="topk">Top-K %</label>
+              <input type="number" step="0.1" name="top_percent" value="10">
+            </div>
+          </div>
+          <div class="advanced">
+            <div class="advanced-header">
+              <span data-i18n="advanced">Advanced</span>
+              <button type="button" id="toggle-adv">▼</button>
+            </div>
+            <div class="advanced-body">
+              <div class="row">
+                <div>
+                  <label class="form-label" data-i18n="aot_size">AOT Input Size</label>
+                  <input type="number" name="aot_img_size" value="224" min="64" max="1024">
+                </div>
+                <div>
+                  <label class="form-label" data-i18n="viz_size">Viz Size</label>
+                  <input type="number" name="viz_img_size" value="512" min="128" max="1024">
+                </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label class="form-label" data-i18n="latent_step">Latent Step</label>
+                  <input type="number" step="0.05" name="latent_scale_step" value="0.25" min="0.05" max="1.0">
+                </div>
+                <div>
+                  <label class="form-label" data-i18n="latent_max">Latent Max</label>
+                  <input type="number" step="0.1" name="latent_scale_max" value="1.0" min="0.1" max="3.0">
+                </div>
+                <div class="checks">
+                  <label class="inline-check">
+                    <input type="checkbox" name="do_topk_transfer" checked>
+                    <span data-i18n="enable_topk">Top-K Transfer</span>
+                  </label>
+                  <label class="inline-check">
+                    <input type="checkbox" name="do_latent_adjust" checked>
+                    <span data-i18n="enable_adjust">Latent Adjust</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="submit" data-i18n="run">Run</button>
+          <div class="progress-inline"><div id="status" class="status"></div></div>
+        </form>
+      </div>
+      <div class="panel results-panel">
+        <div class="results-header" id="results-header"></div>
+        <div id="results" class="results"></div>
+      </div>
+    </div>
+  </div>
+  <script src="/static/app.js?v=9"></script>
+</body>
+</html>
