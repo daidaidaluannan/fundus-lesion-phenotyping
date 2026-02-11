@@ -26,11 +26,11 @@ from torchvision import transforms
 import torchvision.utils as vutils
 import matplotlib.cm as cm
 
-from AAE_S import AAE as MultiMapAAE
-from AAE_C import AAE as BaselineAAE0901
+from train_models.AAE_S import AAE as MultiMapAAE
+from train_models.AAE_C import AAE as BaselineAAE0901
 #from Ret_AAE_1028 import AAE as BaselineAAE1028
 #from train_latent_decoder_1101 import LatentDecoder  # reuse lightweight decoder
-from train_transformer_decoder import TransformerLatentDecoder
+from train_models.train_transformer_decoder import TransformerLatentDecoder
 
 
 # ---------------------------------------------------------------------------

@@ -4,15 +4,18 @@ __pycache__/
 .ipynb_checkpoints/
 
 # 环境与大文件
-.env
 .venv/
 venv/
+.torch/
 *.pth
 *.pkl
 *.pt
 *.ckpt
-
+.DOCKER.md
+envs/
+demo_sample/
 
 runs/
 logs/
 output/
+outputs/

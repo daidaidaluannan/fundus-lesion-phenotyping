@@ -1,0 +1,21 @@
+{
+  "AAE_S": {
+    "in_channels": 3,
+    "out_channels": 3,
+    "num_blocks": 5,
+    "base_channels": 64,
+    "latent_channels": 128,
+    "latent_spatial": 7,
+    "img_size": 224,
+    "upsample_mode": "pixelshuffle"
+  },
+  "AAE_C": {
+    "in_channels": 3,
+    "out_channels": 3,
+    "num_blocks": 5,
+    "base_channels": 64,
+    "latent_dim": 128,
+    "img_size": 224,
+    "upsample_mode": "pixelshuffle"
+  }
+}

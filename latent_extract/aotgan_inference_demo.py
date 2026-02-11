@@ -23,8 +23,8 @@ from model_zoo.aotgan.aotgan import InpaintGenerator, Discriminator  # noqa: E40
 from model_zoo.aotgan.loss import loss as loss_module  # noqa: E402
 from model_zoo.phanes import AnomalyMap  # noqa: E402
 from transforms.synthetic import GenerateMasks  # noqa: E402
-from train_demo.AAE_C import AAE  # noqa: E402
-from train_demo.aotgan_1123 import (  # noqa: E402
+from train_models.AAE_C import AAE  # noqa: E402
+from train_models.aotgan_1123 import (  # noqa: E402
     _infer_upsample_mode,
     load_ret_aae,
     build_aotgan_networks,

@@ -14,25 +14,18 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
-
-import torchvision.models as models
-#from torchvision.models import vgg16, VGG16_Weights
+from torchvision.models import vgg16, VGG16_Weights
 from PIL import Image
 from torchvision.transforms import InterpolationMode, functional as TF
 from torchvision.utils import make_grid, save_image
 
 # 学习率调度器
-try:
-    from torch.optim.lr_scheduler import SequentialLR, LinearLR, ConstantLR
-except ImportError:
-    SequentialLR = LinearLR = ConstantLR = None
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, ConstantLR
 
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend for servers
 import matplotlib.pyplot as plt
 from torch.utils.data import Subset
-
 
 # ----------------------------
 # Model building blocks
@@ -278,33 +271,6 @@ class LatentDiscriminator(nn.Module):
 # Losses
 # ----------------------------
 
-
-def build_warmup_scheduler(optimizer, warmup_epochs, total_epochs, min_factor):
-    """Create a LR scheduler with linear warmup if supported, otherwise fallback."""
-    warmup_epochs = int(max(0, warmup_epochs))
-    total_epochs = int(max(1, total_epochs))
-    min_factor = float(min_factor)
-
-    if SequentialLR is not None and LinearLR is not None and ConstantLR is not None:
-        return SequentialLR(
-            optimizer,
-            schedulers=[
-                LinearLR(optimizer, start_factor=min_factor, total_iters=warmup_epochs),
-                ConstantLR(optimizer, factor=1.0, total_iters=max(1, total_epochs - warmup_epochs)),
-            ],
-            milestones=[warmup_epochs]
-        )
-
-    if warmup_epochs == 0:
-        return LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
-
-    def lr_lambda(epoch):
-        if epoch >= warmup_epochs:
-            return 1.0
-        return min_factor + (1.0 - min_factor) * (epoch / max(1, warmup_epochs))
-
-    return LambdaLR(optimizer, lr_lambda=lr_lambda)
-
 class WeightedL1Loss(nn.Module):
     def __init__(
         self,
@@ -383,8 +349,7 @@ class VGGPerceptual(nn.Module):
     def __init__(self, layer_index: int = 22, requires_grad: bool = False, device: str = "cpu"):
         super().__init__()
         device = torch.device(device)
-        #vgg = vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
-        vgg = models.vgg16_bn(pretrained=True).features
+        vgg = vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
         self.slice = nn.Sequential(*[vgg[i] for i in range(layer_index + 1)])
         if not requires_grad:
             for p in self.slice.parameters():
@@ -693,8 +658,6 @@ def train_one_epoch(model: AAE,
             l1 = F.l1_loss(xrec, imgs, reduction="mean")
 
         perc = perceptual(xrec, imgs) if (is_cfp and perceptual is not None) else torch.zeros(1, device=device)
-        if isinstance(perc, torch.Tensor):
-            perc = perc.mean()
         loss = l1 + cfg["lambda_perc"] * perc + cfg["lambda_adv"] * g_adv
 
         optim_ae.zero_grad(set_to_none=True)
@@ -853,11 +816,9 @@ def save_checkpoint(path: str,
                     epoch: int,
                     cfg: Dict):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    model_to_save = unwrap_module(model)
-    disc_to_save = unwrap_module(disc)
     torch.save({
-        "model": model_to_save.state_dict(),
-        "disc": disc_to_save.state_dict(),
+        "model": unwrap_module(model).state_dict(),
+        "disc": unwrap_module(disc).state_dict(),
         "optim_ae": optim_ae.state_dict(),
         "optim_d": optim_d.state_dict(),
         "epoch": epoch,
@@ -887,7 +848,7 @@ def parse_args():
     p.add_argument("--out-dir", type=str, default="./checkpoints_0831")
     p.add_argument("--upsample-mode", type=str, default="deconv", choices=["deconv", "bilinear", "pixelshuffle"])
     p.add_argument("--latent-dim", type=int, default=256,
-                   help="潜在空间维度，需与判别器保持一致")
+                   help="Latent representation dimension shared by AE and discriminator")
 
     # Filtering & splitting
     p.add_argument("--labels-csv", type=str, default=None, help="CSV file for filtering normal images")
@@ -1042,8 +1003,22 @@ def main():
     # LR warmup schedulers
     warmup_epochs = int(min(args.warmup_epochs, args.epochs))
     min_factor = args.min_lr_factor
-    sched_ae = build_warmup_scheduler(optim_ae, warmup_epochs, args.epochs, min_factor)
-    sched_d = build_warmup_scheduler(optim_d, warmup_epochs, args.epochs, min_factor)
+    sched_ae = SequentialLR(
+        optim_ae,
+        schedulers=[
+            LinearLR(optim_ae, start_factor=min_factor, total_iters=warmup_epochs),
+            ConstantLR(optim_ae, factor=1.0, total_iters=max(1, args.epochs - warmup_epochs)),
+        ],
+        milestones=[warmup_epochs]
+    )
+    sched_d = SequentialLR(
+        optim_d,
+        schedulers=[
+            LinearLR(optim_d, start_factor=min_factor, total_iters=warmup_epochs),
+            ConstantLR(optim_d, factor=1.0, total_iters=max(1, args.epochs - warmup_epochs)),
+        ],
+        milestones=[warmup_epochs]
+    )
 
     start_epoch = 1
     resume_mode = False
@@ -1071,8 +1046,22 @@ def main():
         # 重建优化器和调度器（避免继承旧动量）
         optim_ae = torch.optim.AdamW(model.parameters(), lr=args.ae_lr, weight_decay=args.weight_decay)
         optim_d = torch.optim.AdamW(disc.parameters(), lr=args.d_lr, weight_decay=args.weight_decay)
-        sched_ae = build_warmup_scheduler(optim_ae, warmup_epochs, args.epochs, min_factor)
-        sched_d = build_warmup_scheduler(optim_d, warmup_epochs, args.epochs, min_factor)
+        sched_ae = SequentialLR(
+            optim_ae,
+            schedulers=[
+                LinearLR(optim_ae, start_factor=min_factor, total_iters=warmup_epochs),
+                ConstantLR(optim_ae, factor=1.0, total_iters=max(1, args.epochs - warmup_epochs)),
+            ],
+            milestones=[warmup_epochs]
+        )
+        sched_d = SequentialLR(
+            optim_d,
+            schedulers=[
+                LinearLR(optim_d, start_factor=min_factor, total_iters=warmup_epochs),
+                ConstantLR(optim_d, factor=1.0, total_iters=max(1, args.epochs - warmup_epochs)),
+            ],
+            milestones=[warmup_epochs]
+        )
         start_epoch = 1
         finetune_mode = True
 
@@ -1087,7 +1076,14 @@ def main():
             {"params": frozen_model.final.parameters(), "lr": args.ae_lr, "weight_decay": args.weight_decay},
         ], lr=args.ae_lr, weight_decay=args.weight_decay)
         # 重建调度器以适配新优化器
-        sched_ae = build_warmup_scheduler(optim_ae, warmup_epochs, args.epochs, min_factor)
+        sched_ae = SequentialLR(
+            optim_ae,
+            schedulers=[
+                LinearLR(optim_ae, start_factor=min_factor, total_iters=warmup_epochs),
+                ConstantLR(optim_ae, factor=1.0, total_iters=max(1, args.epochs - warmup_epochs)),
+            ],
+            milestones=[warmup_epochs]
+        )
         print("[Finetune] Encoder frozen. Optimizing decoder_core + final only.")
 
     # Training loop
