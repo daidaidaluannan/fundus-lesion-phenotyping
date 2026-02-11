@@ -5,6 +5,10 @@
 Fundus-Lesion-Phenotyping
 </h1>
 
+<p align="center">
+  Language: <a href="README.md">English</a> | <a href="README.zh.md">Chinese</a>
+</p>
+
 This folder gathers the key training and inference scripts for the retina AAE and AOT-GAN workflow, plus the `model_zoo/aotgan` dependencies.
 <p align="center">
 <img src="doc/img/workflow.png">
@@ -36,10 +40,129 @@ This folder gathers the key training and inference scripts for the retina AAE an
   ```
   The training/inference scripts compute `repo_root = Path(__file__).resolve().parent.parent` to avoid hard-coded paths; ensure `PYTHONPATH` includes the repo root if you move files around.
 
+## Docker Quickstart
+- Requirements: Docker installed. For GPU, install `nvidia-container-runtime` and add `--gpus all` to `docker run`. The image expects a bundled `fundus_env.tar.gz`; if missing, adjust `Dockerfile` to build from `environment.yml` (slower).
+- Build the image:
+  ```bash
+  docker build -t fundus-lesion-phenotyping .
+  ```
+- Mounting example: map data to `/data` and weights to `/weights` so container paths match the commands (`-v /data:/data -v /weights:/weights`).
+
+**Web inference (FastAPI UI)**
+```bash
+docker run --gpus all --rm -it \
+  -v /data:/data \
+  -v /weights:/weights \
+  -p 8000:8000 \
+  fundus-lesion-phenotyping \
+  bash -c "export PYTHONPATH=/workspace/fundus-lesion-phenotyping && \
+           python web/run_server.py \
+             --aae-c /weights/aae_c.pth \
+             --aot-gan /weights/aotgan_netG.pth \
+             --aae-s /weights/aae_s_multimap.pth \
+             --device cuda \
+             --host 0.0.0.0 --port 8000"
+# Open http://localhost:8000. For CPU, drop --gpus all and set --device cpu.
+```
+
+**CLI inference (no Web UI)**
+```bash
+docker run --gpus all --rm -it \
+  -v /data:/data \
+  -v /weights:/weights \
+  fundus-lesion-phenotyping \
+  bash -c "export PYTHONPATH=/workspace/fundus-lesion-phenotyping && \
+           python latent_extract/counterfactual_pipeline.py \
+             --image-dir /data/images \
+             --mask-dir /data/masks \  # optional; auto-generated if omitted
+             --ret-weights /weights/aae_c.pth \
+             --gen-weights /weights/aotgan_netG.pth \
+             --multimap-ckpt /weights/aae_s_multimap.pth \
+             --out-dir /data/outputs/cf_run"
+```
+
+**Train AAE (CFP example)**
+```bash
+docker run --gpus all --rm -it \
+  -v /data:/data \
+  fundus-lesion-phenotyping \
+  bash -c "export PYTHONPATH=/workspace/fundus-lesion-phenotyping && \
+           python train_models/AAE_C.py \
+             --modality CFP \
+             --train-images /data/train_images \
+             --train-masks /data/train_masks \
+             --val-images /data/val_images \
+             --val-masks /data/val_masks \
+             --out-dir /data/outputs/aae_cfp"
+# OCT: drop mask args and set --modality OCT.
+```
+
+**Train AOT-GAN (auto masks supported)**
+```bash
+docker run --gpus all --rm -it \
+  -v /data:/data \
+  -v /weights:/weights \
+  fundus-lesion-phenotyping \
+  bash -c "export PYTHONPATH=/workspace/fundus-lesion-phenotyping && \
+           python train_models/aotgan_1215.py \
+             --train-images /data/train_images \
+             --train-masks /data/train_masks \  # optional
+             --val-images /data/val_images \
+             --val-masks /data/val_masks \
+             --ret-weights /weights/aae_cfp_best.pth \
+             --out-dir /data/outputs/aotgan_run \
+             --color-mode color \
+             --mask-threshold 0.153"
+```
+
+**Pseudotime / latent analysis**
+```bash
+docker run --gpus all --rm -it \
+  -v /data:/data \
+  -v /weights:/weights \
+  fundus-lesion-phenotyping \
+  bash -c "export PYTHONPATH=/workspace/fundus-lesion-phenotyping && \
+           python train_models/Pseudotime_latent.py \
+             --data-dir /data/images \
+             --csv /data/list.csv \  # first column: image filenames
+             --out-dir /data/outputs/pseudotime \
+             --aae-c-ckpt /weights/aae_cfp_best.pth \
+             --aot-ckpt /weights/aotgan_gen.pth \
+             --multimap-ckpt /weights/aae_s_multimap.pth \
+             --color-mode gray \
+             --mask-threshold 0.153"
+```
+
+**Export multimap latents**
+```bash
+docker run --gpus all --rm -it \
+  -v /data:/data \
+  -v /weights:/weights \
+  fundus-lesion-phenotyping \
+  bash -c "export PYTHONPATH=/workspace/fundus-lesion-phenotyping && \
+           python latent_extract/export_latent.py \
+             --image-dir /data/images \
+             --out-csv /data/outputs/latents.csv \
+             --multimap-ckpt /weights/aae_s_multimap.pth \
+             --multimap-config train_models/multimap_config.json \  # optional
+             --aae-c-ckpt /weights/aae_cfp_best.pth \
+             --aot-ckpt /weights/aotgan_gen.pth \
+             --color-mode gray \
+             --mask-threshold 0.153 \
+             --top-k 10"  # keep top 10% by magnitude
+```
+
+**Tips**
+- If `web/model_paths.json` contains stale absolute paths, delete it and restart the container.
+- With multiple GPUs, prefer batch size ≥ GPU count to enable DataParallel; otherwise it falls back to single GPU.
+- Without the pre-bundled env, edit `Dockerfile` to install from `environment.yml`, noting the longer build time.
+
 ## Data & Weights
 - CFP runs expect RGB images and optional vessel masks; OCT runs expect single-channel images without masks.
 - Prepare folders like `/path/to/train_images`, `/path/to/train_masks`, `/path/to/val_images`, `/path/to/val_masks`.
 - Place pretrained AAE weights (e.g., `aae_cfp_train_best.pth`) anywhere and pass the path via `--ret-weights` for AOT-GAN.
+- Pretrained checkpoints (AAE_C, AAE_S, AOT-GAN) are available via Baidu NetDisk: link `https://pan.baidu.com/s/156_qJ-iV3WttUverDVQmQw` with extraction code `c2mv`. Download `model_ckp` and mount or copy into your run.
+- Environment archive (`env.zip`) via Baidu NetDisk: link `https://pan.baidu.com/s/1e3RapQiSFr-fg57thA5t_g` with extraction code `k6wr`. Unzip and follow instructions inside, or build from `environment.yml` as an alternative.
 
 ## Train AAE (CFP example)
 ```bash
@@ -113,4 +236,4 @@ python train_demo/aotgan_1215.py \
   - Input, coarse recon, pseudo-healthy, auto-mask
   - Latent overlays (mean/max), latent grid
   - Optional latent adjustment panel (scales) and Top-K latent transfer result
-- Form fields include mask threshold, color mode, Top-K %, latent step/max. Language toggle (EN/中文) in UI.
+- Form fields include mask threshold, color mode, Top-K %, latent step/max. Language toggle (EN/Chinese) in UI.

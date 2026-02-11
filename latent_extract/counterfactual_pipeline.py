@@ -30,8 +30,8 @@ if str(repo_root) not in sys.path:
 
 from model_zoo.phanes import AnomalyMap  # noqa: E402
 from transforms.synthetic import GenerateMasks  # noqa: E402
-from train_demo import aotgan_1123 as aot  # noqa: E402
-from train_demo.visualize_multimap_single_1113 import (  # noqa: E402
+from train_models import aotgan_1123 as aot  # noqa: E402
+from train_models.visualize_multimap_single_1113 import (  # noqa: E402
     VisualizationOutputs,
     build_multimap_model,
     ModelConfig,

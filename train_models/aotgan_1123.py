@@ -27,7 +27,7 @@ from model_zoo.aotgan.aotgan import InpaintGenerator, Discriminator
 from model_zoo.aotgan.loss import loss as loss_module
 from model_zoo.phanes import AnomalyMap
 from transforms.synthetic import GenerateMasks
-from train_demo.AAE_C  import AAE
+from train_models.AAE_C  import AAE
 
 
 class ImageFolderDataset(Dataset):

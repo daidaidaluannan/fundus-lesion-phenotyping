@@ -16,9 +16,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
-from AAE_C import AAE as BaselineAAE
-from AAE_C import make_dataloader
-from AAE_S import AAE as MultiMapAAE
+from train_models.AAE_C import AAE as BaselineAAE
+from train_models.AAE_C import make_dataloader
+from train_models.AAE_S import AAE as MultiMapAAE
 
 
 class DropPath(nn.Module):
